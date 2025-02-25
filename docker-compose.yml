@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  oracle-db:
+    image: gvenzl/oracle-free:latest
+    container_name: oracle_xe_db
+    environment:
+      - ORACLE_PASSWORD=db2025
+    ports:
+      - "1522:1521"
+    volumes:
+      - ./my-init.sql:/container-entrypoint-initdb.d/my-init.sql:ro
+    healthcheck:
+      test: ["CMD", "sqlplus", "-s", "sys/db2025@//localhost:1521/FREEPDB1", "as", "sysdba","select *from users"]
+      interval: 20s
+      timeout: 5s
+      retries: 50
+  spring-app:
+    build: ./ticketsupport
+    container_name: spring_app
+    ports:
+      - "8081:8081"
+    expose:
+      - "8081"
+    depends_on:
+      oracle-db:
+         condition: service_healthy
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@oracle-db:1521/FREEPDB1
+      - SPRING_DATASOURCE_USERNAME=sys as SYSDBA
+      - SPRING_DATASOURCE_PASSWORD=db2025
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
